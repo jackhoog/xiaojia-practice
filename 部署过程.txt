@@ -13,12 +13,12 @@
 #mv Python-3.6.7.tar.xz /usr/local/python3/ --把安装包移动到创建的文件夹下
 #tar -xf Python-3.6.7.tar.xz --解压文件
 #cd Python-3.6.7 --打开安装包位置
-#源码配置安装
+--源码配置安装
 ./configure --prefix=/usr/local/python3 
 make
 make install
 ===========================================================================
-#创建软链接
+--创建软链接
 ln -s /usr/local/python3/bin/python3 /usr/bin/python3
 ln -s /usr/local/python3/bin/pip3 /usr/bin/pip3
 

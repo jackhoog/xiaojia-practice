@@ -1,0 +1,88 @@
+本次实践以PaddleDetection下的FasterRCNN-res50模型为例，数据集选用VOC格式
+PaddleDetection下载地址：https://github.com/PaddlePaddle/PaddleDetection.git
+
+
+--数据集准备，此处就不赘言了，文件目录结构如下：
+PaddleDetection
+  ├──dataset
+      ├──voc
+          ├──test.txt
+          ├──trainval.txt
+          ├──label_list.txt
+          ├──create_list.py
+          ├──download_voc.py
+          ├──VOCdevkit
+              ├──VOC2007(或VOC2012)
+              │   ├── Annotations
+              │       ├── xxx.xml
+              │   ├── JPEGImages
+              │       ├── xxx.jpg
+              │   ├── ImageSets
+              │       ├── Main
+              │           ├── trainval.txt
+              │           ├── test.txt
+
+
+--生成读取文件：
+运行create_list.py，在voc目录下生成test.txt和trainval.txt
+注意此处生成的两个txt文件与Main目录下的并不相同，此两个txt文件是根据Main目录下的txt文件生成的
+
+
+--修改参数配置
+修改后的参数文件看参照给出的faster_rcnn_r50_1x.yml、faster_fpn_reader.yml
+dataset:
+  !VOCDataSet
+  anno_path: trainval.txt   # 训练集列表文件基于数据集根目录的相对路径
+  dataset_dir: dataset/voc  # 数据集根目录
+  use_default_label: false   # 是否使用默认标签，默认为true，训练自己的数据集需改为false，并新建label_list.txt置于voc路径下
+  with_background: true  # 背景是否作为一类标签，默认为true，标签数等于类别数+1
+修改类别数、batchsize、leaningrate、use-gpu等等
+要注意修改参数的时候不要把冒号后面的空格删掉，会报错
+
+
+--开始训练
+在命令行执行命令：
+  ! python tools/train.py -c ../../work/yolov3_darknet.yml --use_vdl=True --vdl_log_dir=/home/aistudio/log --eval # 启动模型训练
+直接运行tool/train.py（需修改默认命令不建议使用）：
+  修改ppdet/utils/cli.py第51行：self.add_argument("-c", "--config", default=r'E:\PaddleDetection\configs\faster_rcnn_r50_fpn_1x.yml', type=str, help="configuration file to use")
+  
+
+--导出训练模型
+运行tools/export_model.py
+导出三个文件：
+  ├──__model__
+  ├──__params
+  ├──infer_cfg.yml
+
+
+--图像推理
+PaddleDetection在deploy/python文件夹下提供模型推理的脚本infer.py,可以实现Python端调用Paddle预测库完成图像和视频的推理，并可视化推理结果。
+594行--添加模型保存位置：
+parser.add_argument(
+        "--model_dir",
+        type=str,
+        default='../../output/yolov3_darknet/',
+        help=("Directory include:'__model__', '__params__', "
+              "'infer_cfg.yml', created by tools/export_model.py."))
+601行--添加测试图片：
+parser.add_argument(
+    "--image_file", type=str, default='../../demo/000000570688.jpg', help="Path of image file.")
+结果保存在deploy/python/output
+
+
+--在tool/infer.py中推理，无需导出模型：
+命令行：
+  ! python tools/infer.py -c ../../work/yolov3_darknet.yml --infer_img=../../work/dog.jpg -o weights=https://paddlemodels.bj.bcebos.com/object_detection/yolov3_darknet.tar
+直接运行infer.py（需修改默认命令不建议使用）:   
+  修改ppdet/utils/cli.py第52行：
+  self.add_argument("-o", "--opt", nargs='*', default=[r'weights=E:\PaddleDetection\tools\output\yolov3_darknet\model_final'], type=list,help="set configuration options")
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  

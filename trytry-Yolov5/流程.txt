@@ -1,0 +1,25 @@
+try一try大牛的Yolov5吧，不是我说，这是真的快啊，我的远古cpu都能到0.2s一张
+github地址：https://github.com/ultralytics/yolov5.git
+
+--准备自己的数据集，VOC格式：
+labelimg勾一波数据，用voc2darknet.py转成darknet格式
+一个图对应一个txt，将生成的txt放入datasets/score/images/train
+
+
+--修改参数，训练
+在train.py中，选择models/yolov5s.yaml作为配置文件
+parser.add_argument('--cfg', type=str, default='models/yolov5s.yaml', help='*.cfg path')
+第二行，修改类别数量，不带背景的数量，一就是一   nc: 1
+直接运行train.py，模型保存在weights文件夹内
+
+
+--运行模型
+修改detect.py中的参数
+parser.add_argument('--weights', type=str, default='weights/best.pt', help='model.pt path')
+测试图像放在inference\images
+输出图像在inference\output
+
+
+--继续训练
+修改train.py中的参数
+parser.add_argument('--resume',  type=bool, default=True,help='resume training from last.pt') 

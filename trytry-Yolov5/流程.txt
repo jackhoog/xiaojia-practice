@@ -10,6 +10,7 @@ labelimg勾一波数据，用voc2darknet.py转成darknet格式
 在train.py中，选择models/yolov5s.yaml作为配置文件
 parser.add_argument('--cfg', type=str, default='models/yolov5s.yaml', help='*.cfg path')
 第二行，修改类别数量，不带背景的数量，一就是一   nc: 1
+同样修改.\data\coco128.yaml的类别 nc=1
 直接运行train.py，模型保存在weights文件夹内
 
 

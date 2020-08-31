@@ -1,0 +1,90 @@
+感谢百度大佬的开源：https://github.com/PaddlePaddle/PaddleOCR
+
+其实百度已经给出了非常详细的步骤了，但在这里还是赘述一下，方便自己取用。
+
+中文OCR模型快速使用
+1.环境配置：详见官方说明
+
+2.inference模型下载
+解压完毕后应有如下文件结构：
+E:\PaddleOCR-develop
+      |...
+      |-inference
+          |-ch_rec_mv3_crnn
+              |- model
+              |- params
+          |-ch_det_mv3_db
+              |- model
+              |- params
+
+
+3.单张图像或者图像集合预测
+
+以下代码实现了文本检测、识别串联推理，
+在执行预测时，需要通过参数image_dir指定单张图像或者图像集合的路径、
+参数det_model_dir指定检测inference模型的路径
+参数rec_model_dir指定识别inference模型的路径。
+可视化识别结果默认保存到 ./inference_results 文件夹里面。
+
+# 预测image_dir指定的单张图像
+python3 tools/infer/predict_system.py --image_dir="./doc/imgs/11.jpg" --det_model_dir="./inference/ch_det_mv3_db/"  --rec_model_dir="./inference/ch_rec_mv3_crnn/"
+# 预测image_dir指定的图像集合
+python3 tools/infer/predict_system.py --image_dir="./doc/imgs/" --det_model_dir="./inference/ch_det_mv3_db/"  --rec_model_dir="./inference/ch_rec_mv3_crnn/"
+# 如果想使用CPU进行预测，需设置use_gpu参数为False
+python3 tools/infer/predict_system.py --image_dir="./doc/imgs/11.jpg" --det_model_dir="./inference/ch_det_mv3_db/"  --rec_model_dir="./inference/ch_rec_mv3_crnn/" --use_gpu=False
+通用中文OCR模型
+# 预测image_dir指定的单张图像
+python3 tools/infer/predict_system.py --image_dir="./doc/imgs/11.jpg" --det_model_dir="./inference/ch_det_r50_vd_db/"  --rec_model_dir="./inference/ch_rec_r34_vd_crnn/"
+支持空格的通用中文OCR模型
+*注意：请将代码更新到最新版本，并添加参数 --use_space_char=True *
+# 预测image_dir指定的单张图像
+python3 tools/infer/predict_system.py --image_dir="./doc/imgs_en/img_12.jpg" --det_model_dir="./inference/ch_det_r50_vd_db/"  --rec_model_dir="./inference/ch_rec_r34_vd_crnn_enhance/" --use_space_char=True
+
+***
+实在懒得每次在命令行里敲，我就在PaddleOCR-develop\tools\infer\utility.py中将默认路径修改了，以后每次修改路径即可：
+parser.add_argument("--image_dir", type=str, default=r'F:\Datasets\China_disaster_history\Minguo1')
+parser.add_argument("--det_model_dir", type=str, default='E:/XKRS-OCR/module/direction/')
+parser.add_argument("--rec_model_dir", type=str, default='E:/XKRS-OCR/module/recognition/')
+***
+
+因为有的一行空隙比较大，定位的时候定成多个目标，而我想要一行一个目标，所以在predict_system.py，119行左右加了一个函数用于融合相同行，
+在__call__函数中调用了一下，85行左右，sorted_boxes函数之后
+dt_boxes = sorted_boxes(dt_boxes)
+dt_boxes = merge_boxes(dt_boxes)
+融合函数：
+def merge_boxes(dt_boxes):
+    num_boxes = len(dt_boxes)
+    _boxes = list(dt_boxes)
+    del_inx = []
+    for i in range(num_boxes - 1):
+        if abs(_boxes[i+1][0][1] - _boxes[i][0][1]) < 10:
+            del_inx.append(i+1)
+    createVar = locals()
+    allList = []
+    for i in range(1,len(del_inx)):
+        if i == 1:
+            createVar[f'List{i-1}']= [del_inx[i-1]-1,del_inx[i-1]]
+            allList.append(eval(f'List{i-1}'))
+        if del_inx[i]-1 !=del_inx[i-1]:
+            createVar[f'List{i}']= [del_inx[i]-1,del_inx[i]]
+            allList.append(eval(f'List{i}'))
+        if del_inx[i]-1 == del_inx[i-1]:
+            allList[-1].append(del_inx[i])
+    for Listi in allList:
+        i,ii = Listi[0],Listi[-1]  
+        _boxes[i][0][0] = min(_boxes[ii][0][0],_boxes[i][0][0])
+        _boxes[i][0][1] = min(_boxes[ii][0][1],_boxes[i][0][1])
+        _boxes[i][1][0] = max(_boxes[ii][1][0],_boxes[i][1][0])
+        _boxes[i][1][1] = min(_boxes[ii][1][1],_boxes[i][1][1])
+        _boxes[i][2][0] = max(_boxes[ii][2][0],_boxes[i][2][0])
+        _boxes[i][2][1] = max(_boxes[ii][2][1],_boxes[i][2][1])
+        _boxes[i][3][0] = min(_boxes[ii][3][0],_boxes[i][3][0])
+        _boxes[i][3][1] = max(_boxes[ii][3][1],_boxes[i][3][1])
+    _boxes_copy = copy.deepcopy(_boxes)
+    addi = 0
+    for i in range(len(_boxes_copy)):
+        if i in del_inx:
+            _boxes_copy.pop(i-addi)
+            addi += 1
+    return _boxes_copy
+

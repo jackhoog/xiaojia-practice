@@ -17,6 +17,7 @@
                 |- word_003.jpg
                 | ...
 
+    用make_label.py生成标签txt
     训练图片放入文件夹train_images，txt文件rec_gt_train.txt记录图片路径和标签。
     注意：图片路径和图片标签用 \t 分割
     ***

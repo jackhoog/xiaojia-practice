@@ -1,0 +1,122 @@
+此流程由师弟陈其浩提供
+一、数据准备
+
+（1）使用labelImg勾画数据，生成xml格式文件。当标签名称内容为“###”时，表示该文本框无效，在训练时会跳过。
+
+（2）运行xml2txt.py将文件夹里的xml全部转换为txt文件，一个图像对应一个txt。运行Reformatting.py将零散的标注txt文件转换为一个txt。
+
+最终的标注文件格式如下，中间用"\t"分隔：
+" 图像文件名                             json.dumps编码的图像标注信息"
+ch4_test_images/img_61.jpg    [{"transcription": "MASA", "points": [[310, 104], [416, 141], [418, 216], [312, 179]]}, {...}]
+json.dumps编码前的图像标注信息是包含多个字典的list，字典中的 points 表示文本框的四个点的坐标(x, y)，从左上角的点开始顺时针排列，transcription 表示当前文本框的文字。
+
+（3）将单独的标注文件txt放在/PaddleOCR/train_data/icdar2015/text_localization/下，并改名为train_icdar2015_label.txt。按上述步骤生成测试标注txt，也放在此文件夹下。
+
+勾画完数据并转换格式后，PaddleOCR/train_data/ 有两个文件夹和两个文件，分别是：
+/PaddleOCR/train_data/icdar2015/text_localization/
+  └─ icdar_c4_train_imgs/           数据集的训练数据
+  └─ ch4_test_images/                数据集的测试数据
+  └─ train_icdar2015_label.txt     数据集的训练标注
+  └─ test_icdar2015_label.txt       数据集的测试标注
+
+二、快速启动训练
+
+（1）首先下载模型backbone的pretrain model，PaddleOCR的检测模型目前支持两种backbone，分别是MobileNetV3、ResNet50_vd，也可以根据需求使用PaddleClas中的模型更换backbone。
+
+以下以windows系统为例
+# 下载MobileNetV3的预训练模型，打开浏览器输入网址：
+ https://paddle-imagenet-models-name.bj.bcebos.com/MobileNetV3_large_x0_5_pretrained.tar 
+# 下载ResNet50的预训练模型，打开浏览器输入网址：
+ https://paddle-imagenet-models-name.bj.bcebos.com/ResNet50_vd_ssld_pretrained.tar
+# 解压预训练模型文件，以MobileNetV3为例
+官网下载Bandizip软件，解压tar文件
+
+# 注：正确解压backbone预训练权重文件后，文件夹下包含众多以网络层命名的权重文件，格式如下：
+./pretrain_models/MobileNetV3_large_x0_5_pretrained/
+  └─ conv_last_bn_mean
+  └─ conv_last_bn_offset
+  └─ conv_last_bn_scale
+  └─ conv_last_bn_variance
+  └─ ......
+
+（2）启动训练
+
+#如果您安装的是cpu版本，请将配置文件./configs/det/det_db_mv3.yml中的 use_gpu 字段修改为false，此yml配置文件内可以修改训练的相关参数，注意yml文件内的路径应当改为绝对路径。
+#在cmd中 cd PaddleOCR 进入模型文件夹并 activate xxx（虚拟环境名）进入飞桨环境，并运行下述指令即可开始训练。
+python tools/train.py -c configs/det/det_mv3_db.yml -o Global.pretrain_weights=./pretrain_models/MobileNetV3_large_x0_5_pretrained/
+
+上述指令中，通过-c 选择训练使用configs/det/det_db_mv3.yml配置文件。
+#也可以通过-o参数在不需要修改yml文件的情况下，改变训练的参数，比如，调整训练的学习率为0.0001
+python tools/train.py -c configs/det/det_mv3_db.yml -o Optimizer.base_lr=0.0001
+
+det_mv3_db.yml 文件解析：
+
+use_gpu: true   是否使用GPU
+epoch_num:    10000 训练轮次上限
+save_model_dir: ./output/det_db/    训练模型保存位置，修改后使用绝对路径
+save_epoch_step: 200    每200轮保存一次模型
+train_batch_size_per_card: 4    每批次输入模型训练的数据量
+test_batch_size_per_card: 4    每批次输入模型训练的测试量
+reader_yml: ./PaddleOCR-develop/configs/det/det_db_icdar15_reader.yml    数据读取配置文件，建议改成绝对路径
+pretrain_weights: ./pretrain_models/MobileNetV3_large_x0_5_pretrained/    模型训练预权重文件，断点训练时需修改成训练模型保存路径
+checkpoints:     断点训练读取模型路径
+
+若使用pycharm启动训练，修改program.py代码段
+
+class ArgsParser(ArgumentParser):
+    def __init__(self):
+        super(ArgsParser, self).__init__(
+            formatter_class=RawDescriptionHelpFormatter)
+        self.add_argument("-c", "--config", default=r'F:\\20200807PaddleOCR\\PaddleOCR-develop\\configs\\det\\det_mv3_db.yml',
+                          type=str, help="configuration file to use")
+        self.add_argument(
+            "-o", "--opt", nargs='+', default=['Global.pretrain_weights=./pretrain_models/MobileNetV3_large_x0_5_pretrained/'],
+                          type=list, help="set configuration options")
+
+（3）断点训练
+
+#通过指定Global.checkpoints指定要加载的模型路径。注：将./output/det_db/ 中训练的最高精度模型存放至./your/trained/，并将模型三个文件更名为model。运行以下代码启动断点训练：
+python tools/train.py -c configs/det/det_mv3_db.yml -o Global.checkpoints=./your/trained/model
+
+注意：Global.checkpoints的优先级高于Global.pretrain_weights的优先级，即同时指定两个参数时，优先加载Global.checkpoints指定的模型，如果Global.checkpoints指定的模型路径有误，会加载Global.pretrain_weights指定的模型。
+若读取的仍是预训练权重，修改configs/det/det_mv3_db.yml中的checkpoints，添加断点训练读取模型路径
+
+若使用pycharm启动断点训练，修改program.py代码段
+
+class ArgsParser(ArgumentParser):
+    def __init__(self):
+        super(ArgsParser, self).__init__(
+            formatter_class=RawDescriptionHelpFormatter)
+        self.add_argument("-c", "--config", default=r'F:\\20200807PaddleOCR\\PaddleOCR-develop\\configs\\det\\det_mv3_db.yml',
+                          type=str, help="configuration file to use")
+        self.add_argument(
+            "-o", "--opt", nargs='+', default=['Global.checkpoints="F:/20200807PaddleOCR/PaddleOCR-develop/your/trained/model"'],
+                          type=list, help="set configuration options")
+
+三、测试检测效果
+
+./doc/imgs_en/文件夹下放测试图像，运行代码后检测结果存放在./output/det_db/det_results/，修改Global.checkpoints即可修改读取的模型
+
+测试单张图像的检测效果
+python tools/infer_det.py -c configs/det/det_mv3_db.yml -o TestReader.infer_img="./doc/imgs_en/img_10.jpg" Global.checkpoints="./output/det_db/best_accuracy"
+
+测试文件夹下所有图像的检测效果
+python tools/infer_det.py -c configs/det/det_mv3_db.yml -o TestReader.infer_img="./doc/imgs_en/" Global.checkpoints="./output/det_db/best_accuracy"
+
+若使用pycharm启动断点训练，修改program.py代码段
+
+class ArgsParser(ArgumentParser):
+    def __init__(self):
+        super(ArgsParser, self).__init__(
+            formatter_class=RawDescriptionHelpFormatter)
+        self.add_argument("-c", "--config", default=r'F:\\20200807PaddleOCR\\PaddleOCR-develop\\configs\\det\\det_mv3_db.yml',
+                          type=str, help="configuration file to use")
+        self.add_argument(
+            "-o", "--opt", nargs='+', default=['TestReader.infer_img="F:/20200807PaddleOCR/PaddleOCR-develop/doc/imgs_en/img_10.jpg"' ,
+                                               'Global.checkpoints="F:/20200807PaddleOCR/PaddleOCR-develop/output/det_db/best_accuracy"'],
+                          type=list, help="set configuration options")
+
+
+
+
+

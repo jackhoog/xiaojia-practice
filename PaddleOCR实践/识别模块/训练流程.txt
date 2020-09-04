@@ -95,7 +95,13 @@
 
 
 6.测试结果：
-    运行tools\infer\predict_rec.py，默认参数在同级目录的utility.py中修改即可，十分友好。
+    在tools/program.py中做以下修改，并运行infer.rec.py：
+    self.add_argument(
+    "-o", "--opt", nargs='+', default=[r'Global.checkpoints=E:\PaddleOCR-develop\output\rec_CRNN\ly\iter_epoch_120',
+    r'Global.infer_img=F:\Datasets\AcidRainProgram\cutIMG_fromCQH\res\01'], type=list,  #best_accuracy
+    help="set configuration options")
+   
+    转模型后，运行tools\infer\predict_rec.py，默认参数在同级目录的utility.py中修改即可。
 
 7.转换模型：
     tools\export_model.py

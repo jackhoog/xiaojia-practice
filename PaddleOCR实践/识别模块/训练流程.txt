@@ -105,7 +105,8 @@
 
 7.转换模型：
     tools\export_model.py
-
+    在yml文件中添加save_inference_dir: ./inference/BJ_AcidRain_rec 保存模型位置
+    修改tools/program.py，保存的模型："-o", "--opt", nargs='+', default=[r'Global.checkpoints=E:\PaddleOCR-develop\output\rec_CRNN\ly\best_accuracy'
 
 
 

@@ -77,7 +77,9 @@ parser.add_argument(
   修改ppdet/utils/cli.py第52行：
   self.add_argument("-o", "--opt", nargs='*', default=[r'weights=E:\PaddleDetection\tools\output\yolov3_darknet\model_final'], type=list,help="set configuration options")
   
-  
+--断点训练：
+yml文件中修改
+pretrain_weights: E:/PaddleDetection/output/cascade_rcnn_r50_fpn_1x/10000，报错就试试10000.pdparams
   
   
   
